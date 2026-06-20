@@ -1,0 +1,12 @@
+{
+  "host": "DJ_Kuddus.aternos.me",
+  "port": 33508,
+  "username": "KYARA",
+  "version": "1.20.1",
+  "ownerName": "DJ_Kuddus",
+  "auth": "offline",
+  "viewDistance": 10,
+  "chatDelay": 800,
+  "autoReconnect": true,
+  "reconnectDelay": 5000
+}

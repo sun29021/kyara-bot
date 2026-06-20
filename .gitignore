@@ -1,0 +1,6 @@
+node_modules/
+.env
+memory/kyara_memory.json
+memory/strategy_memory.json
+*.log
+.DS_Store
