@@ -51,10 +51,12 @@ class MovementSystem {
     this.bot.pathfinder.setGoal(new GoalY(y));
   }
 
-  explore(radius = 50) {
+  explore(radius = 15) {
     const pos = this.bot.entity.position;
-    const tx = pos.x + Math.floor((Math.random() - 0.5) * radius * 2);
-    const tz = pos.z + Math.floor((Math.random() - 0.5) * radius * 2);
+    // Cap radius to 15 max to avoid anti-cheat kicks on Aternos
+    const safeRadius = Math.min(radius, 15);
+    const tx = pos.x + Math.floor((Math.random() - 0.5) * safeRadius * 2);
+    const tz = pos.z + Math.floor((Math.random() - 0.5) * safeRadius * 2);
     // Silent explore - no chat message
     this.bot.pathfinder.setGoal(new (require('mineflayer-pathfinder').goals.GoalXZ)(tx, tz));
   }

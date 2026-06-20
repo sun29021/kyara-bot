@@ -108,14 +108,24 @@ function createKyaraBot(settings) {
   bot.ctx = ctx;
 
   // --- Events ---
-  bot.once('spawn', () => {
-    console.log('[KYARA] Spawned. Hello world.');
-    bot.movements = new Movements(bot, mcData(bot.version));
-    bot.movements.allowSprinting = true;
-    bot.chat("yo. I'm here. Try not to embarrass yourselves.");
+bot.once('spawn', () => {
+  console.log('[KYARA] Spawned. Hello world.');
+  const movements = new Movements(bot, mcData(bot.version));
+  // Aternos Anti-Cheat fix
+  movements.allowSprinting = false;
+  movements.allowParkour = false;
+  movements.canDig = false; // disable digging during pathfinding to reduce flag risk
+  bot.pathfinder.setMovements(movements);
+  bot.movements = movements;
+
+  bot.chat("yo. I'm here. Try not to embarrass yourselves.");
+
+  // Wait 15 seconds for physics to fully settle before ANY movement
+  setTimeout(() => {
     goalScheduler.start();
     learningEngine.start();
-  });
+  }, 15000);
+});
 
   bot.on('chat', async (username, message) => {
     if (username === bot.username) return;

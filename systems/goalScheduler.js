@@ -53,7 +53,7 @@ class GoalScheduler {
         }
         break;
       case 'build_base': if (!this.ctx.taskSystem.currentTask) this.ctx.taskSystem.startTask({ type: 'build', buildType: 'base', material: 'dirt', width: 7, length: 7, requester: bot.username }); break;
-      case 'explore': if (!this.ctx.taskSystem.currentTask && Math.random() < 0.3) this.ctx.movementSystem.explore(40); break;
+      case 'explore': if (!this.ctx.taskSystem.currentTask && Math.random() < 0.2) this.ctx.movementSystem.explore(12); break;
     }
   }
 
