@@ -72,7 +72,7 @@ function callGroq(systemPrompt, messages, opts = {}) {
 
 async function generateResponse(playerName, message, context, recentChat) {
   const ctxLines = [];
-  if (context.isOwner) ctxLines.push("This is your owner. Show respect.");
+  if (context.isOwner) ctxLines.push("(Talking to your owner — be cooperative, but don't restate that he's the owner every message, just act like it naturally.)");
   else if (context.isAlly) ctxLines.push("This player is a trusted ally.");
   else if (context.isHostile) ctxLines.push("This player has been hostile. Roast freely.");
   if (context.nickname && context.nickname !== playerName) ctxLines.push(`Their nickname is ${context.nickname}.`);
@@ -111,8 +111,17 @@ async function reasonAbout(problem) {
 
 async function classifyIntent(message) {
   // Lightweight local classification - avoids extra API calls
-  const m = message.toLowerCase();
+  const m = message.toLowerCase().trim();
   if (m.startsWith('!')) return { type: 'command' };
+
+  // Informational questions ("how can I find diamond?", "what's the best way to mine?")
+  // should always go to chat, even if they contain action-ish keywords like "find"/"mine".
+  // Direct requests ("can you follow me?", "come here") still fall through to the
+  // keyword matching below since they're asking for an action, not information.
+  if (/^(how|why|what'?s|what is|where is|where can|when|who)\b/.test(m)) {
+    return { type: 'chat' };
+  }
+
   const actions = [
     { keywords: ['come here', 'come to me', 'cmere', 'come'], type: 'move_come' },
     { keywords: ['follow me', 'follow '], type: 'follow' },
