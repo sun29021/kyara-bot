@@ -7,7 +7,7 @@ class KyaraChatHandler {
     this.chatHistory = [];
     this.responseCache = new Map();
     this.followTarget = null;
-    this.eventCooldowns = { death: 0, damage: 0, mob: 0, mining: 0, building: 0 };
+    this.eventCooldowns = { death: 0, damage: 0, mob: 0, mining: 0, building: 0, low_health: 0 };
     this.lastResponseTime = 0;
   }
 
@@ -209,7 +209,11 @@ class KyaraChatHandler {
         return `Digging down to Y=${y}. Careful of lava.`;
       }
       case 'craft': {
-        const item = message.replace(/.*(craft|make me|make a|make)\s*/i, '').trim();
+        let item = message.replace(/.*(craft|make me|make a|make)\s*/i, '').trim();
+        // Strip trailing filler clauses so "make a pickaxe and give it to me"
+        // doesn't end up trying to craft an item literally named that whole phrase
+        item = item.replace(/\s*(and\s+)?(give|hand|drop|pass)\s+(it|them|that|those)?\s*(to|for)?\s*(me|us)?\.?$/i, '').trim();
+        item = item.replace(/\s*(please|pls|for me|thanks|thank you)\.?$/i, '').trim();
         ctx.taskSystem.startTask({ type: 'craft', item, requester: playerName });
         return `Crafting ${item}. Give me a sec.`;
       }
@@ -272,7 +276,7 @@ class KyaraChatHandler {
     if (/help me|can you help|need help/.test(m)) return 'help_request';
     if (/(thank|thanks|tysm|appreciate|good job|nice work|well done)/.test(m)) return 'compliment';
     if (/(stupid|idiot|noob|trash|dumb|useless|suck|loser)/.test(m)) return 'insult';
-    if (/(who are you|what are you|are you a bot|are you ai)/.test(m)) return 'question_self';
+    if (/(who are you\??$|what are you\??$|are you a bot|are you ai|are you real|are you alive)/.test(m)) return 'question_self';
     if (/(bye|goodbye|cya|later|gtg)/.test(m)) return 'goodbye';
     return null;
   }
@@ -288,7 +292,7 @@ class KyaraChatHandler {
 
   async handleEvent(event, data = {}) {
     const now = Date.now();
-    const cooldowns = { death: 60000, damage: 20000, mob: 25000, mining: 15000, building: 10000 };
+    const cooldowns = { death: 60000, damage: 20000, mob: 25000, mining: 15000, building: 10000, low_health: 60000 };
     if (this.eventCooldowns[event] && now - this.eventCooldowns[event] < cooldowns[event]) return null;
     this.eventCooldowns[event] = now;
 

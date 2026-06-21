@@ -97,24 +97,86 @@ class TaskSystem {
   async craftItem(itemName) {
     const bot = this.bot;
     const mcData = require('minecraft-data')(bot.version);
-    const item = mcData.itemsByName[itemName];
+    const normalized = this.normalizeItemName(itemName);
+    const item = mcData.itemsByName[normalized];
     if (!item) {
       bot.chat(`Don't know what ${itemName} is.`);
       return false;
     }
-    const recipe = bot.recipesFor(item.id)[0];
+
+    // Look for a nearby crafting table FIRST. Most tools/weapons need the 3x3
+    // grid, and bot.recipesFor() only returns those recipes when a table is
+    // passed in - calling it without one silently returns only 2x2 recipes
+    // (sticks, planks, etc), making every tool/weapon craft fail as "no recipe".
+    let table = bot.findBlock({ matching: mcData.itemsByName.crafting_table.id, maxDistance: 4 });
+    let recipe = bot.recipesFor(item.id, null, 1, table)[0];
+
+    // No recipe found even with a table nearby (or no table at all) - try
+    // placing one from inventory if we're carrying one, then retry.
+    if (!recipe && !table) {
+      const placed = await this.tryPlaceCraftingTable();
+      if (placed) {
+        table = bot.findBlock({ matching: mcData.itemsByName.crafting_table.id, maxDistance: 4 });
+        recipe = bot.recipesFor(item.id, null, 1, table)[0];
+      }
+    }
+
     if (!recipe) {
-      bot.chat(`No recipe for ${itemName}. Need a crafting table maybe?`);
+      bot.chat(table
+        ? `Got materials for ${itemName} but the recipe doesn't fit. Might be missing ingredients.`
+        : `No crafting table nearby for ${itemName} and I don't have one to place.`);
       return false;
     }
+
     try {
-      const table = bot.findBlock({ matching: mcData.itemsByName.crafting_table.id, maxDistance: 4 });
       await bot.craft(recipe, 1, table);
       return true;
     } catch (e) {
       bot.chat(`Can't craft ${itemName}. Missing materials probably.`);
       return false;
     }
+  }
+
+  async tryPlaceCraftingTable() {
+    const bot = this.bot;
+    const mcData = require('minecraft-data')(bot.version);
+    let tableItem = bot.inventory.items().find(i => i.name === 'crafting_table');
+
+    // No table on hand - try crafting one first (fits the 2x2 grid, no table needed)
+    if (!tableItem) {
+      const tableType = mcData.itemsByName.crafting_table;
+      const tableRecipe = bot.recipesFor(tableType.id)[0];
+      if (!tableRecipe) return false;
+      try {
+        await bot.craft(tableRecipe, 1, null);
+        tableItem = bot.inventory.items().find(i => i.name === 'crafting_table');
+      } catch (e) {
+        return false;
+      }
+    }
+    if (!tableItem) return false;
+
+    try {
+      const refBlock = bot.blockAt(bot.entity.position.offset(0, -1, 0));
+      await bot.equip(tableItem, 'hand');
+      await bot.placeBlock(refBlock, new (require('vec3'))(0, 1, 0));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Turn loose player phrasing ("wodden pickaxe", "Wooden Pickaxe") into a
+  // valid minecraft-data item id ("wooden_pickaxe").
+  normalizeItemName(raw) {
+    const TYPO_FIXES = {
+      wodden: 'wooden', woden: 'wooden', stick: 'stick',
+      pickaxe: 'pickaxe', pickax: 'pickaxe', axe: 'axe',
+      sord: 'sword', sward: 'sword'
+    };
+    let s = raw.toLowerCase().trim().replace(/[^a-z0-9\s_]/g, '');
+    s = s.split(/\s+/).map(w => TYPO_FIXES[w] || w).join('_');
+    return s.replace(/_+/g, '_');
   }
 
   async depositItems() {
