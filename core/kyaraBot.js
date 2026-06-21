@@ -121,7 +121,7 @@ bot.once('spawn', () => {
   bot.chat("yo. I'm here. Try not to embarrass yourselves.");
 
   // Wait 15 seconds for physics to fully settle before ANY movement
-  setTimeout(() => {
+  bot._startupTimer = setTimeout(() => {
     goalScheduler.start();
     learningEngine.start();
   }, 15000);
@@ -180,13 +180,8 @@ bot.once('spawn', () => {
     console.log('[KYARA] Error:', err.message);
   });
 
-  bot.on('end', () => {
-    console.log('[KYARA] Bot ended.');
-    memory.save();
-  });
-
   // Random thoughts
-  setInterval(() => {
+  const thoughtInterval = setInterval(() => {
     if (!bot.entity) return;
     const thought = chatHandler.maybeRandomThought();
     if (thought) {
@@ -195,10 +190,23 @@ bot.once('spawn', () => {
   }, 180000); // every 3 minutes
 
   // Periodic memory save
-  setInterval(() => memory.save(), 60000);
+  const saveInterval = setInterval(() => memory.save(), 60000);
 
   // Experience recorder tick
-  setInterval(() => experienceRecorder.tick(), 30000);
+  const experienceInterval = setInterval(() => experienceRecorder.tick(), 30000);
+
+  bot.on('end', () => {
+    console.log('[KYARA] Bot ended.');
+    memory.save();
+    // Prevent leaked timers/schedulers from a dead bot instance
+    // from bleeding into the next reconnect cycle
+    clearTimeout(bot._startupTimer);
+    clearInterval(thoughtInterval);
+    clearInterval(saveInterval);
+    clearInterval(experienceInterval);
+    try { goalScheduler.stop && goalScheduler.stop(); } catch (e) {}
+    try { learningEngine.stop && learningEngine.stop(); } catch (e) {}
+  });
 
   return bot;
 }
